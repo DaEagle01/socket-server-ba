@@ -66,14 +66,58 @@ io.on('connection', (socket) => {
 
     socket.on('hangUpCall', () => {
         console.log('Call hung up by user:', socket.id);
+
         if (currentCall && (currentCall.from === socket.id || users[socket.id].userType === 'agent')) {
-            const otherParty = users[currentCall.from === socket.id ? currentCall.to : currentCall.from];
+            const otherPartyId = currentCall.from === socket.id ? currentCall.to : currentCall.from;
+            const otherParty = users[otherPartyId];
+
             if (otherParty) {
                 otherParty.socket.emit('hangUpCall');
             }
+
+            // If the agent hangs up, remove the customer from the users object
+            if (users[socket.id].userType === 'agent') {
+                const customerId = currentCall.from;
+                if (customerId) {
+                    console.log(`Removing customer ${customerId} from users`);
+                    delete users[customerId];
+                }
+            }
+
             currentCall = null;
         }
     });
+
+    /* 
+    hangs up the call when either agent or customer hangs up the call
+
+    socket.on('hangUpCall', () => {
+    console.log('Call hung up by user:', socket.id);
+
+    if (currentCall && (currentCall.from === socket.id || users[socket.id].userType === 'agent')) {
+        const otherPartyId = currentCall.from === socket.id ? currentCall.to : currentCall.from;
+        const otherParty = users[otherPartyId];
+
+        // Notify the other party that the call has been hung up
+        if (otherParty) {
+            otherParty.socket.emit('hangUpCall');
+        }
+
+        // Remove customer from users after hanging up
+        if (users[currentCall.from]) {
+            delete users[currentCall.from];
+            console.log(`User ${currentCall.from} removed from users object`);
+        }
+
+        // Clear the current call
+        currentCall = null;
+
+        // Process the next call in the queue
+        processNextCall();
+    }
+});
+
+    */
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
