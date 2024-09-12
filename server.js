@@ -21,36 +21,36 @@ let currentCall = null;
 io.on('connection', (socket) => {
     console.log('A user connected...', socket.id);
 
-    socket.on('register', ({ userType }) => {
-        users[socket.id] = { socket, userType };
-        console.log(`User registered: ${socket.id}, Type: ${userType}`);
+    socket.on('register', ({ userType, roomId }) => {
+        users[roomId] = { socket, userType, socketId: socket.id };
+        console.log(`User registered: ${roomId}, Type: ${userType}`);
     });
 
     socket.on('callUser', (data) => {
-        console.log('Call initiated by user:', socket.id);
+        console.log('Call initiated by user:', data?.roomId)
         const agent = Object.values(users).find(user => user.userType === 'agent');
 
         if (agent && !currentCall) {
-            currentCall = { from: socket.id, data };
-            agent.socket.emit('incomingCall', { signal: data, from: socket.id });
+            currentCall = { from: data?.roomId, data, socketId: socket.id };
+            agent.socket.emit('incomingCall', { signal: data, from: data?.roomId });
         } else {
             const queuePosition = callQueue.length + 1;
-            callQueue.push({ from: socket.id, data });
+            callQueue.push({ from: data?.roomId, data, socketId: socket.id });
             socket.emit('inQueue', { position: queuePosition });
             updateQueuePositions();
         }
     });
 
     socket.on('acceptCall', (data) => {
-        console.log('Call accepted by agent:', socket.id);
+        console.log('Call accepted by agent:', data?.to);
         const customer = users[currentCall.from];
         if (customer) {
             customer.socket.emit('callAccepted', data.signal);
         }
     });
 
-    socket.on('rejectCall', () => {
-        console.log('Call rejected by agent:', socket.id);
+    socket.on('rejectCall', (data) => {
+        console.log('Call rejected by agent:', data?.to);
         if (currentCall) {
             const customer = users[currentCall.from];
             if (customer) {
@@ -60,15 +60,15 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('requestNextCall', () => {
-        processNextCall(socket.id);
+    socket.on('requestNextCall', ({ from, to }) => {
+        console.log({ from, to })
+        processNextCall(from);
     });
 
-    socket.on('hangUpCall', () => {
-        console.log('Call hung up by user:', socket.id);
-
-        if (currentCall && (currentCall.from === socket.id || users[socket.id].userType === 'agent')) {
-            const otherPartyId = currentCall.from === socket.id ? currentCall.to : currentCall.from;
+    socket.on('hangUpCall', (data) => {
+        console.log('user given hang up data and current call', data, 324243524134564, currentCall);
+        if (currentCall && (currentCall.from === data?.from || currentCall.from === data?.to || users[data?.from].userType === 'agent')) {
+            const otherPartyId = currentCall.from === data?.to ? currentCall.to : currentCall.from;
             const otherParty = users[otherPartyId];
 
             if (otherParty) {
@@ -76,7 +76,7 @@ io.on('connection', (socket) => {
             }
 
             // If the agent hangs up, remove the customer from the users object
-            if (users[socket.id].userType === 'agent') {
+            if (users[data?.from].userType === 'agent') {
                 const customerId = currentCall.from;
                 if (customerId) {
                     console.log(`Removing customer ${customerId} from users`);
@@ -121,10 +121,10 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
-        if (currentCall && currentCall.from === socket.id) {
+        if (currentCall && currentCall.socketId === socket.id) {
             processNextCall();
         } else {
-            const queueIndex = callQueue.findIndex(call => call.from === socket.id);
+            const queueIndex = callQueue.findIndex(call => call.socketId === socket.id);
             if (queueIndex !== -1) {
                 callQueue.splice(queueIndex, 1);
                 updateQueuePositions();
