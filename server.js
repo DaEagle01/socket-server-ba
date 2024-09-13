@@ -31,6 +31,7 @@ io.on('connection', (socket) => {
 
     socket.on('callUser', (data) => {
         console.log('Call initiated by user:', data?.roomId, data?.kycDetails?.data?.first_name, data?.kycDetails?.data?.last_name);
+        console.log("currentCall: ", { roomId: currentCall?.from, socketId: currentCall?.socketId });
         const agent = Object.values(users).find(user => user.userType === 'agent');
 
         if (agent && !currentCall) {
@@ -69,13 +70,14 @@ io.on('connection', (socket) => {
     });
 
     socket.on('hangUpCall', (data) => {
-        console.log('user given hangUp data and current call', data, 324243524134564, currentCall?.from);
+        console.log('user given hangUp data and current call', data, 324243524134564);
+        console.log("currentCall: ", { roomId: currentCall?.from, socketId: currentCall?.socketId });
+
         if (currentCall && (currentCall.from === data?.from || currentCall.from === data?.to || users[data?.from].userType === 'agent')) {
-            const otherPartyId = currentCall.from === data?.to ? currentCall.to : currentCall.from;
-            const otherParty = users[otherPartyId];
+            const otherParty = data?.by === "agent" ? users[data?.to] : users[data?.from];
 
             if (otherParty) {
-                otherParty.socket.emit('hangUpCall');
+                otherParty.socket.emit('hangUpCall', data);
             }
 
             // If the agent hangs up, remove the customer from the users object
@@ -124,8 +126,6 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
-        console.log('currentCall:', currentCall?.from, currentCall?.socketId)
-        console.log('users:', Object.keys(users));
         if (currentCall && currentCall?.socketId === socket.id) {
             processNextCall();
             currentCall = null;
