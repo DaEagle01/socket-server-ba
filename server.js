@@ -20,6 +20,9 @@ let currentCall = null;
 
 io.on('connection', (socket) => {
     console.log('A user connected...', socket.id);
+    console.log("users: ", Object.keys(users));
+    console.log("callQueue: ", callQueue);
+    console.log("currentCall: ", { roomId: currentCall?.from, socketId: currentCall?.socketId });
 
     socket.on('register', ({ userType, roomId }) => {
         users[roomId] = { socket, userType, socketId: socket.id };
@@ -27,7 +30,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('callUser', (data) => {
-        console.log('Call initiated by user:', data?.roomId)
+        console.log('Call initiated by user:', data?.roomId, data?.kycDetails?.data?.first_name, data?.kycDetails?.data?.last_name);
         const agent = Object.values(users).find(user => user.userType === 'agent');
 
         if (agent && !currentCall) {
@@ -66,7 +69,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('hangUpCall', (data) => {
-        console.log('user given hang up data and current call', data, 324243524134564, currentCall);
+        console.log('user given hangUp data and current call', data, 324243524134564, currentCall?.from);
         if (currentCall && (currentCall.from === data?.from || currentCall.from === data?.to || users[data?.from].userType === 'agent')) {
             const otherPartyId = currentCall.from === data?.to ? currentCall.to : currentCall.from;
             const otherParty = users[otherPartyId];
@@ -121,16 +124,26 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
-        if (currentCall && currentCall.socketId === socket.id) {
+        console.log('currentCall:', currentCall?.from, currentCall?.socketId)
+        console.log('users:', Object.keys(users));
+        if (currentCall && currentCall?.socketId === socket.id) {
             processNextCall();
+            currentCall = null;
         } else {
+            const userKeys = Object.keys(users);
+            const matchingUser = userKeys.find(key => users[key].socketId === socket.id);
+            console.log({ matchingUser }, users[matchingUser]?.userType === 'agent');
+            if(users[matchingUser]?.userType === 'agent') {
+                currentCall = null;
+            };
+
             const queueIndex = callQueue.findIndex(call => call.socketId === socket.id);
             if (queueIndex !== -1) {
                 callQueue.splice(queueIndex, 1);
                 updateQueuePositions();
             }
         }
-        delete users[socket.id];
+        // delete users[socket.id];
     });
 
     function processNextCall(agentId) {
