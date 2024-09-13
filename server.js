@@ -54,14 +54,14 @@ io.on('connection', (socket) => {
     });
 
     socket.on('rejectCall', (data) => {
-        console.log('Call rejected by agent:', data?.to);
+        console.log('Call rejected by agent:', data);
         if (currentCall) {
             const customer = users[currentCall.from];
             if (customer) {
                 customer.socket.emit('callRejected');
             }
-            processNextCall();
         }
+        processNextCall(data?.from);
     });
 
     socket.on('requestNextCall', ({ from, to }) => {
@@ -133,7 +133,7 @@ io.on('connection', (socket) => {
             const userKeys = Object.keys(users);
             const matchingUser = userKeys.find(key => users[key].socketId === socket.id);
             console.log({ matchingUser }, users[matchingUser]?.userType === 'agent');
-            if(users[matchingUser]?.userType === 'agent') {
+            if (users[matchingUser]?.userType === 'agent') {
                 currentCall = null;
             };
 
