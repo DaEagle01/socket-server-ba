@@ -60,6 +60,10 @@ io.on('connection', (socket) => {
             if (customer) {
                 customer.socket.emit('callRejected');
             }
+            // if there are no more calls in the queue, and the agent rejects the call, set currentCall to null
+            if(!callQueue.length) {
+                currentCall = null;
+            }
         }
         processNextCall(data?.from);
     });
@@ -92,37 +96,6 @@ io.on('connection', (socket) => {
             currentCall = null;
         }
     });
-
-    /* 
-    hangs up the call when either agent or customer hangs up the call
-
-    socket.on('hangUpCall', () => {
-    console.log('Call hung up by user:', socket.id);
-
-    if (currentCall && (currentCall.from === socket.id || users[socket.id].userType === 'agent')) {
-        const otherPartyId = currentCall.from === socket.id ? currentCall.to : currentCall.from;
-        const otherParty = users[otherPartyId];
-
-        // Notify the other party that the call has been hung up
-        if (otherParty) {
-            otherParty.socket.emit('hangUpCall');
-        }
-
-        // Remove customer from users after hanging up
-        if (users[currentCall.from]) {
-            delete users[currentCall.from];
-            console.log(`User ${currentCall.from} removed from users object`);
-        }
-
-        // Clear the current call
-        currentCall = null;
-
-        // Process the next call in the queue
-        processNextCall();
-    }
-});
-
-    */
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
