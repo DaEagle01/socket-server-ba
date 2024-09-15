@@ -25,15 +25,17 @@ io.on('connection', (socket) => {
     console.log("currentCall: ", { roomId: currentCall?.from, socketId: currentCall?.socketId });
 
     socket.on('register', ({ userType, roomId }) => {
-        users[roomId] = { socket, userType, socketId: socket.id };
+        users[roomId] = { socket, userType, socketId: socket.id, roomId };
         console.log(`User registered: ${roomId}, Type: ${userType}`);
     });
 
     socket.on('callUser', (data) => {
-        console.log('Call initiated by user:', data?.roomId, data?.kycDetails?.data?.first_name, data?.kycDetails?.data?.last_name);
+        console.log('Call initiated by user:', data?.roomId, data?.agentEmail);
+        console.log("users: ", Object.keys(users));
         console.log("currentCall: ", { roomId: currentCall?.from, socketId: currentCall?.socketId });
-        const agent = Object.values(users).find(user => user.userType === 'agent');
 
+        const agent = Object.values(users).find(user => user.roomId === data?.agentEmail && user.userType === 'agent');
+        
         if (agent && !currentCall) {
             currentCall = { from: data?.roomId, data, socketId: socket.id };
             agent.socket.emit('incomingCall', { signal: data, from: data?.roomId });
@@ -61,7 +63,7 @@ io.on('connection', (socket) => {
                 customer.socket.emit('callRejected');
             }
             // if there are no more calls in the queue, and the agent rejects the call, set currentCall to null
-            if(!callQueue.length) {
+            if (!callQueue.length) {
                 currentCall = null;
             }
         }
